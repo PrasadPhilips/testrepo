@@ -1,6 +1,75 @@
 #!/usr/bin/env groovy
 // please look at: https://jenkins.io/doc/book/pipeline/syntax/
-echo "... branch name ..."
+
+def MailRecipient = 'rallapalli.prasad@philips.com'
+ 
+pipeline {
+    agent {
+        node {
+            label 'local'
+        }
+    }
+    options {
+        timestamps()
+        buildDiscarder(logRotator(numToKeepStr: '24'))
+        skipDefaultCheckout(true)
+    }
+    stages {
+        stage('Initialize') {
+            steps {
+                sh '''#!/bin/bash -l
+                     echo "Node labels: ${nodes}"
+                     echo 'printenv'  
+                   '''
+            }
+        }
+        stage('Test') {
+            steps {
+                sh '''#!/bin/bash -l
+                     export PATH=//Users/prasad/Downloads/apache-maven-3.6.1/bin:$PATH
+                     mvn clean install 
+                   '''
+                   junit '**/*.xml' 
+            }
+        }
+        stage('Build') {
+            steps {
+                sh '''#!/bin/bash -l
+                     export PATH=//Users/prasad/Downloads/apache-maven-3.6.1/bin:$PATH
+                     mvn install
+                   '''
+                   archiveArtifacts artifacts: '**/target/*.jar'
+                   archiveArtifacts artifacts: '**/target/*.war'
+                   archiveArtifacts artifacts: '**/*.txt'
+                   publishHTML([allowMissing: false, alwaysLinkToLastBuild: false, keepAll: false, reportDir: '', reportFiles: 'index.html', reportName: 'HTML Report', reportTitles: ''])
+                
+            }
+        }
+        stage('Deploy') {
+            steps {
+                sh '''#!/bin/bash -l
+                     export PATH=//Users/prasad/Downloads/apache-maven-3.6.1/bin:$PATH
+                     mvn clean 
+                     echo "Deploy build is running"
+                   '''
+            }
+        }
+        
+    }
+
+}
+
+node('master') {
+    stage('Cleaning workspace master') {
+        def wrk = pwd() + "@script/"
+        dir("${wrk}") {
+            deleteDir()
+        }
+    }
+}
+
+
+
 
 
 
